@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-  <title>Reading Tile Board</title>
+  <title>Place Value Blocks</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -11,104 +11,107 @@
       --bg:#e5e7eb; --ink:#111827;
       --tray:#3f3f46; --tab:#6b7280; --tab-dim:#9ca3af; --tab-ink:#fff;
       --shadow:rgba(0,0,0,.25);
+      --block-size: 60px;
+      --block-height: 120px;
     }
     body{font-family:'Lexend',sans-serif;background:var(--bg);color:var(--ink);height:100vh;overflow:hidden;touch-action:manipulation}
 
     #app{position:relative;height:100%;width:100%}
 
-    /* workspace leaves room for tile dock (increased for larger tiles) */
-    #wordPane{position:absolute;inset:0 0 60vh 0;background:transparent;overflow:hidden}
-    .hint{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);color:#6b7280;font-size:17px;text-align:center;pointer-events:none}
+    /* workspace leaves room for tile dock */
+    #workPane{position:absolute;inset:0 0 30vh 0;background:transparent;overflow:hidden}
+    .hint{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);color:#6b7280;font-size:17px;text-align:center;pointer-events:none}
 
-    .tile{height:208px;border:2px solid #374151;border-radius:0;cursor:grab;display:flex;align-items:center;justify-content:center;font-weight:700;user-select:none;box-shadow:0 2px 4px rgba(0,0,0,.25);flex-shrink:0;touch-action:none;background:white}
+    /* Card container - holds multiple digit blocks */
+    .tile{
+      height:var(--block-height);
+      display:flex;
+      cursor:grab;
+      user-select:none;
+      flex-shrink:0;
+      touch-action:none;
+      gap:0;
+    }
     .tile:active{cursor:grabbing}
-    .tile.blue{background:#60a5fa}.tile.yellow{background:#fbbf24}.tile.red{background:#f87171}.tile.green{background:#4ade80}.tile.orange{background:#fb923c}.tile.purple{background:#a78bfa}
+
+    /* Individual digit block */
+    .digit-block{
+      width:var(--block-size);
+      height:var(--block-height);
+      border:none;
+      border-radius:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:700;
+      background:#ef4444;
+      font-size:48px;
+      color:#111827;
+    }
+    .comma-block{
+      width:20px;
+      font-size:48px;
+    }
+    .decimal-block{
+      width:8px;
+      font-size:56px;
+      font-weight:900;
+      line-height:1;
+      display:flex;
+      align-items:flex-end;
+      padding-bottom:20px;
+    }
+    .tile{
+      border-radius:6px;
+      border:2px solid #374151;
+      box-shadow:0 2px 4px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+
     .tile.dragging{position:fixed;z-index:1000;opacity:.95;pointer-events:none;will-change:transform;left:0;top:0}
-    .word-pane-tile{position:absolute}
+    .work-pane-tile{position:absolute}
 
     #controls{position:absolute;top:8px;left:8px;display:flex;gap:6px;z-index:10}
     .btn{background:#111827;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-weight:600;font-size:13px;box-shadow:0 2px 6px var(--shadow)}
-    .btn.secondary{background:#374151}.btn.danger{background:#dc2626}
-
-    /* permanent alphabet section */
-    #alphabetSection{position:absolute;left:0;right:0;bottom:30vh;background:#f9fafb;padding:4px 6px;pointer-events:auto;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:15;display:flex;flex-direction:column;gap:3px}
-    .alphabet-row{display:flex;gap:3px;justify-content:center;flex-wrap:wrap}
+    .btn.danger{background:#dc2626}
 
     /* bottom dock: scrollable tile tray with tabs */
     #bottomDock{position:absolute;left:0;right:0;bottom:0;height:30vh;pointer-events:none;z-index:20;display:flex;flex-direction:column}
 
     /* drawer tabs */
     #drawerTabs{display:flex;background:var(--tab-dim);pointer-events:auto;border-bottom:2px solid var(--shadow);overflow-x:auto;flex-shrink:0}
-    .drawer-tab{padding:6px 12px;background:var(--tab);border:none;cursor:pointer;font-weight:700;font-size:12px;white-space:nowrap;border-right:1px solid rgba(0,0,0,.2);transition:background .2s;flex-shrink:0;font-family:'Lexend',sans-serif}
+    .drawer-tab{padding:6px 12px;background:var(--tab);border:none;cursor:pointer;font-weight:700;font-size:12px;white-space:nowrap;border-right:1px solid rgba(0,0,0,.2);transition:background .2s;flex-shrink:0;font-family:'Lexend',sans-serif;color:white}
     .drawer-tab:hover{background:#52525b}
     .drawer-tab.active{background:var(--tray);border-bottom:2px solid var(--tray)}
-    .drawer-tab.blue-text{color:#60a5fa}
-    .drawer-tab.yellow-text{color:#fbbf24}
-    .drawer-tab.red-text{color:#f87171}
-    .drawer-tab.green-text{color:#4ade80}
-    .drawer-tab.orange-text{color:#fb923c}
-    .drawer-tab.purple-text{color:#a78bfa}
 
-    /* tiles area - allow horizontal scrolling for large tiles */
-    #baseTiles{flex:1;background:var(--tray);padding:4px 6px;pointer-events:auto;box-shadow:0 -4px 12px rgba(0,0,0,.3);overflow-x:auto;overflow-y:hidden;display:flex;align-items:center}
-    .base-row{display:flex;flex-wrap:nowrap;gap:3px;justify-content:flex-start;min-width:100%}
-
-    /* Chromebook optimizations */
-    @media screen and (max-width: 1440px) {
-      .hint{font-size:16px}
-      #controls{top:6px;left:6px}
-    }
-
-    /* Smaller Chromebook screens (1366x768 and similar) */
-    @media screen and (max-width: 1366px) {
-      #bottomDock{height:28vh}
-      #wordPane{inset:0 0 56vh 0}
-      #alphabetSection{bottom:28vh;padding:3px 5px;gap:2px}
-      .alphabet-row{gap:2px}
-      .drawer-tab{padding:5px 10px;font-size:11px}
-      #baseTiles{padding:4px 5px}
-      .base-row{gap:2px}
-      .hint{font-size:15px}
-    }
-
-    /* Very small screens (touch optimized) */
-    @media screen and (max-height: 800px) {
-      #bottomDock{height:26vh}
-      #wordPane{inset:0 0 52vh 0}
-      #alphabetSection{bottom:26vh;padding:3px 5px}
-    }
+    /* tiles area */
+    #baseTiles{flex:1;background:var(--tray);padding:8px;pointer-events:auto;box-shadow:0 -4px 12px rgba(0,0,0,.3);overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .base-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;width:100%}
   </style>
 </head>
 <body>
   <div id="app">
-    <div id="wordPane">
-      <div class="hint">Drag tiles here to build words.</div>
+    <div id="workPane">
+      <div class="hint">Drag place value blocks here to build numbers.</div>
       <div id="controls">
-        <select id="lessonSelect" class="btn secondary">
-          <option value="2">Book 2</option><option value="3">Book 3</option><option value="4">Book 4</option>
-          <option value="5">Book 5</option><option value="6">Book 6</option><option value="7">Book 7</option>
-          <option value="8">Book 8</option><option value="9">Book 9</option><option value="10">Book 10</option>
-        </select>
         <button id="resetButton" class="btn danger">Reset</button>
       </div>
-    </div>
-
-    <!-- permanent alphabet section -->
-    <div id="alphabetSection">
-      <div class="alphabet-row" id="alphabetRow1"></div>
-      <div class="alphabet-row" id="alphabetRow2"></div>
     </div>
 
     <!-- bottom dock with drawer tabs -->
     <div id="bottomDock">
       <!-- drawer tabs -->
       <div id="drawerTabs">
-        <button class="drawer-tab active blue-text" data-drawer="consonants">Consonants</button>
-        <button class="drawer-tab yellow-text" data-drawer="vowels">Vowels</button>
-        <button class="drawer-tab red-text" data-drawer="units">Units</button>
-        <button class="drawer-tab green-text" data-drawer="endings">Endings</button>
-        <button class="drawer-tab orange-text" data-drawer="prefixes">Prefixes</button>
-        <button class="drawer-tab purple-text" data-drawer="roots">Roots</button>
+        <button class="drawer-tab" data-drawer="thousandths">Thousandths</button>
+        <button class="drawer-tab" data-drawer="hundredths">Hundredths</button>
+        <button class="drawer-tab" data-drawer="tenths">Tenths</button>
+        <button class="drawer-tab active" data-drawer="ones">Ones</button>
+        <button class="drawer-tab" data-drawer="tens">Tens</button>
+        <button class="drawer-tab" data-drawer="hundreds">Hundreds</button>
+        <button class="drawer-tab" data-drawer="thousands">Thousands</button>
+        <button class="drawer-tab" data-drawer="tenThousands">Ten Thousands</button>
+        <button class="drawer-tab" data-drawer="hundredThousands">Hundred Thousands</button>
+        <button class="drawer-tab" data-drawer="millions">Millions</button>
       </div>
       <!-- tiles area -->
       <div id="baseTiles">
@@ -119,482 +122,573 @@
 
   <script>
     // ====== CONFIG ======
-    const TILE_HEIGHT = 208;  // 4x original (52 * 4)
-    const BASE_TILE_WIDTH = 104;  // 2x original (52 * 2)
-    const TILE_SIZE = TILE_HEIGHT; // For backward compatibility with vertical calculations
+    const BLOCK_SIZE = 60;
+    const BLOCK_HEIGHT = 120;
+    const BLOCK_GAP = 0;
+    const SNAP_DISTANCE = 30;
 
-    // touch-friendly thresholds
-    const SNAP_DISTANCE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 16 : 10;
-    const SEAM_CAPTURE  = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 22 : 14;
-    const MIN_VERTICAL_OVERLAP = Math.floor(TILE_SIZE * 0.33);
-
-    function dragThresholdFor(e){ return (e && e.pointerType === 'touch') ? 12 : 6; }
-    const TAP_MAX_TIME_MS = 250, TAP_MAX_MOVE_PX = 6;
-
-    // ====== LEVEL DATA ======
-    const B_LEVELS = {
-      2: { blue:["b","c","d","f","g","h","j","k","l","m","n","p","qu","r","s","t","v","w","x","y","z","ch","ck","sh","th","wh"], yellow:["a","e","i","o","u"] },
-      3: { red:["all","ang","ing","ong","ung","ank","ink","onk","unk","oll","old","olt","ost","ild","ind"] },
-      4: { yellow:["ai","ay","ee","oa","oe","ue","ew","ow"] },
-      5: { green:["s","es","ed","ing","er","est","ist","y","en","ish","ity","able","tion","sion"], orange:["dis","in","un","non","mis","sub","re","pre","inter","mid","over","up"] },
-      6: { blue:["ph"], yellow:["y"], red:["ture"], green:["ible","ble","cle","dle","fle","gle","kle","ple","tle","zle"], orange:["ate","ite","ine","ice","ace","age"] },
-      7: { yellow:["ar","or","er","ir","ur","ear"], green:["ary","ery","ory"] },
-      8: { yellow:["ie","oi","oy","ey","au","aw","oo","ou","ow","ea","igh","augh","eigh","ei","eu","tu"] },
-      9: { blue:["ps","rh","mn","wr","kn","gh","gn","que","gu","gue"], yellow:["eau","our"], orange:["age"] },
-      10:{ purple:["astro","auto","bio","chron","geo","graph","hydro","phon","tele","demo","fac","form","fort","fract","ject","jud","mal","mater","mit","mort","multi","pater","port","rupt","scrib","script","sect","sec","sent","spect","struct"] }
+    // ====== PLACE VALUE DATA ======
+    const PLACE_VALUES = {
+      tenths: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+      hundredths: [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09],
+      thousandths: [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
+      ones: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+      tens: [10, 20, 30, 40, 50, 60, 70, 80, 90],
+      hundreds: [100, 200, 300, 400, 500, 600, 700, 800, 900],
+      thousands: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000],
+      tenThousands: [10000, 20000, 30000, 40000, 50000, 60000, 70000, 80000, 90000],
+      hundredThousands: [100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000],
+      millions: [1000000, 2000000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000, 9000000]
     };
 
     // ====== STATE ======
-    let baseTiles=[], redTiles=[], greenTiles=[], orangeTiles=[], purpleTiles=[];
-    let blueConsonants=[], yellowVowels=[]; // separate consonants and vowels
-    let tiles=[]; // tiles on the pane
-    let activeDrawer='consonants'; // current drawer tab
+    let tiles = []; // tiles on the pane
+    let activeDrawer = 'ones'; // current drawer tab
 
     // drag state
-    let draggedTile=null, draggedGroup=[], dragOffset={x:0,y:0}, gesture=null, dragStartRowY=null;
+    let draggedTile = null;
+    let dragOffset = {x: 0, y: 0};
+    let gesture = null;
 
     // ====== UTIL ======
-    function getTileWidth(text){
-      // Seamless width: each character gets BASE_TILE_WIDTH
-      return BASE_TILE_WIDTH * text.length;
-    }
-    function getFontSize(text){
-      // Adjust font sizes for larger tiles
-      if(text.length<=2) return '88px';  // 4x larger
-      if(text.length===3) return '72px';  // 4x larger
-      if(text.length===4) return '60px';  // 4x larger
-      if(text.length===5) return '52px';  // 4x larger
-      return '44px';  // 4x larger
-    }
-    function getUniqueSorted(arr){ return [...new Set(arr)].sort((a,b)=> (a.length===b.length ? a.localeCompare(b) : a.length-b.length)); }
-    function sameRowY(y1,y2){ return Math.abs(y1-y2) < TILE_HEIGHT/2; }
-    function areFlush(a,b,tol=2){
-      const aWidth = getTileWidth(a.text);
-      return Math.abs(a.x + aWidth - b.x) <= tol;
+    function getPlaceValueType(value) {
+      if (value < 0.01) return 'thousandths';
+      if (value < 0.1) return 'hundredths';
+      if (value < 1) return 'tenths';
+      if (value < 10) return 'ones';
+      if (value < 100) return 'tens';
+      if (value < 1000) return 'hundreds';
+      if (value < 10000) return 'thousands';
+      if (value < 100000) return 'tenThousands';
+      if (value < 1000000) return 'hundredThousands';
+      return 'millions';
     }
 
-    function recomputeGroupsAround(rowY){
-      const row=tiles.filter(t=>sameRowY(t.y,rowY)).sort((a,b)=>a.x-b.x);
-      let i=0;
-      while(i<row.length){
-        let j=i+1;
-        while(j<row.length && areFlush(row[j-1],row[j])) j++;
-        const seg=row.slice(i,j);
-        if(seg.length===1) seg[0].groupId=null;
-        else { const gid=seg[0].groupId || seg[0].id; seg.forEach(t=>t.groupId=gid); }
-        i=j;
+    function getDigitsArray(value) {
+      // Format number with proper decimals
+      let str;
+      if (value < 1) {
+        // Decimal values - show full value with leading 0
+        if (value < 0.01) {
+          str = value.toFixed(3); // 0.001 format
+        } else if (value < 0.1) {
+          str = value.toFixed(2); // 0.01 format
+        } else {
+          str = value.toFixed(1); // 0.1 format
+        }
+        // Return as: 0 . 1 or 0 . 0 1 or 0 . 0 0 1
+        const parts = str.split('.');
+        return ['0', '.', ...parts[1].split('')];
+      } else {
+        // Whole numbers - convert to string
+        str = String(Math.floor(value));
       }
-    }
-
-    function getGroupChain(main){
-      const row=tiles.filter(t=>sameRowY(t.y,main.y)).sort((a,b)=>a.x-b.x);
-      const idx=row.findIndex(t=>t.id===main.id); if(idx===-1) return [main];
-      let L=idx; while(L-1>=0 && areFlush(row[L-1],row[L])) L--;
-      let R=idx; while(R+1<row.length && areFlush(row[R],row[R+1])) R++;
-      return row.slice(L,R+1);
-    }
-
-    // ====== SEAM INSERTION ======
-    function findSeamNear(dropX, dropY){
-      const row=tiles.filter(t=>sameRowY(t.y, dropY)).sort((a,b)=>a.x-b.x);
-      for(let i=0;i<row.length-1;i++){
-        const L=row[i], R=row[i+1];
-        if(!areFlush(L,R)) continue;
-        const leftWidth = getTileWidth(L.text);
-        const seamX=L.x + leftWidth;
-        if(Math.abs(dropX - seamX) <= SEAM_CAPTURE){
-          return { left:L, right:R, seamX, rowY:L.y };
+      
+      const result = [];
+      const wholeDigits = str.split('');
+      
+      // Process whole number part with commas
+      for (let i = 0; i < wholeDigits.length; i++) {
+        result.push(wholeDigits[i]);
+        const posFromRight = wholeDigits.length - i - 1;
+        // Add comma after every 3rd digit from the right (but not at the end)
+        if (posFromRight > 0 && posFromRight % 3 === 0) {
+          result.push(',');
         }
       }
-      return null;
+      
+      // Add decimal point to whole number cards (at the ones place)
+      result.push('.');
+      
+      return result;
     }
 
-    function insertAtSeam(newTileData, seam){
-      const {right,rowY}=seam;
-      const newWidth = getTileWidth(newTileData.text);
-      const rightSide=tiles.filter(t=>sameRowY(t.y,rowY) && t.x>=right.x).sort((a,b)=>a.x-b.x);
-      rightSide.forEach(t=>{ t.x += newWidth; });
-      const newTile={ id: Date.now()+Math.random(), text:newTileData.text, color:newTileData.color, x: right.x - newWidth, y: rowY, groupId:null };
-      tiles.push(newTile);
-      recomputeGroupsAround(rowY);
+    function getNumBlocks(placeValue) {
+      const blocks = { 
+        thousandths: 4,  // 0.001 (0 + decimal + 3 digits, but decimal is narrow)
+        hundredths: 3,   // 0.01 (0 + decimal + 2 digits)
+        tenths: 2,       // 0.1 (0 + decimal + 1 digit)
+        ones: 1,         // 1 (decimal point doesn't count in width)
+        tens: 2,         // 10
+        hundreds: 3,     // 100
+        thousands: 4,    // 1,000 (comma is narrow)
+        tenThousands: 5, // 10,000
+        hundredThousands: 6, // 100,000
+        millions: 7      // 1,000,000
+      };
+      return blocks[placeValue];
+    }
+
+    function getCardWidth(placeValue) {
+      const numBlocks = getNumBlocks(placeValue);
+      return numBlocks * BLOCK_SIZE + (numBlocks - 1) * BLOCK_GAP;
+    }
+
+    function getPlaceValueOrder(placeValue) {
+      const order = { 
+        thousandths: 1,
+        hundredths: 2, 
+        tenths: 3,
+        millions: 4,
+        hundredThousands: 5, 
+        tenThousands: 6, 
+        thousands: 7, 
+        hundreds: 8, 
+        tens: 9, 
+        ones: 10
+      };
+      return order[placeValue];
+    }
+
+    // Calculate which digits are visible for a tile considering overlays
+    function calculateVisibleDigits(tile) {
+      const digits = getDigitsArray(tile.value);
+      const myBlocks = digits.length;
+      
+      // Find all tiles overlaying this one (children)
+      const overlayingTiles = tiles.filter(t => t.parentId === tile.id);
+      
+      if (overlayingTiles.length === 0) {
+        return digits; // All digits visible
+      }
+
+      // Find the largest overlaying tile (covers most blocks)
+      const largestOverlay = overlayingTiles.reduce((largest, current) => {
+        const currentBlocks = getDigitsArray(current.value).length;
+        const largestBlocks = getDigitsArray(largest.value).length;
+        return currentBlocks > largestBlocks ? current : largest;
+      });
+
+      const overlayBlocks = getDigitsArray(largestOverlay.value).length;
+      
+      // The overlaying tile covers the rightmost blocks
+      const visibleCount = myBlocks - overlayBlocks;
+      
+      if (visibleCount <= 0) {
+        return []; // Completely covered
+      }
+
+      // Return only the leftmost (visible) digits
+      return digits.slice(0, visibleCount);
+    }
+
+    // Find if we should snap to another tile
+    function findOverlayTarget(dropX, dropY, droppedPlaceValue, excludeId) {
+      const droppedOrder = getPlaceValueOrder(droppedPlaceValue);
+      const droppedWidth = getCardWidth(droppedPlaceValue);
+
+      let bestMatch = null;
+      let bestDistance = Infinity;
+
+      for (const tile of tiles) {
+        if (tile.id === excludeId) continue;
+
+        const targetOrder = getPlaceValueOrder(tile.placeValue);
+        
+        // Determine if dropped card is decimal or whole number
+        const droppedIsDecimal = droppedPlaceValue === 'thousandths' || droppedPlaceValue === 'hundredths' || droppedPlaceValue === 'tenths';
+        const targetIsDecimal = tile.placeValue === 'thousandths' || tile.placeValue === 'hundredths' || tile.placeValue === 'tenths';
+        
+        // Check if this is a valid overlay relationship
+        let canOverlay = false;
+        let snapX, snapY;
+        
+        if (!droppedIsDecimal && !targetIsDecimal && droppedOrder > targetOrder) {
+          // Whole number overlaying whole number
+          // Align right edges (which aligns the decimal points since decimal is at right edge)
+          canOverlay = true;
+          const targetWidth = getCardWidth(tile.placeValue);
+          snapX = tile.x + targetWidth - droppedWidth;
+          snapY = tile.y;
+        } else if (droppedIsDecimal && !targetIsDecimal) {
+          // Decimal card underlaying whole number
+          // Align ones place: target's decimal is at right edge, dropped decimal is after the "0"
+          canOverlay = true;
+          const targetWidth = getCardWidth(tile.placeValue);
+          // Target's decimal point is at (tile.x + targetWidth)
+          // Dropped card's decimal point is at (snapX + BLOCK_SIZE) since "0" takes one block
+          // So: snapX + BLOCK_SIZE = tile.x + targetWidth
+          snapX = tile.x + targetWidth - BLOCK_SIZE;
+          snapY = tile.y;
+        } else if (droppedIsDecimal && targetIsDecimal && droppedOrder > targetOrder) {
+          // Decimal overlaying/underlaying another decimal
+          // Both have "0." at the same position, so same x
+          canOverlay = true;
+          snapX = tile.x;
+          snapY = tile.y;
+        }
+        
+        if (!canOverlay) continue;
+
+        // Check if drop position is close to snap position
+        const dx = dropX - snapX;
+        const dy = dropY - snapY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < SNAP_DISTANCE && distance < bestDistance) {
+          bestDistance = distance;
+          bestMatch = {
+            tile,
+            snapX,
+            snapY
+          };
+        }
+      }
+
+      return bestMatch;
     }
 
     // ====== DOM BUILDERS ======
-    function createTile(text,color,source){
-      const el=document.createElement('div');
-      el.className=`tile ${color}`;
-      el.textContent=text;
-      el.style.width=getTileWidth(text)+'px';
-      el.style.fontSize=getFontSize(text);
-      el.dataset.text=text; el.dataset.color=color; el.dataset.source=source;
-      el.addEventListener('pointerdown',(e)=>onPointerStart(e,text,color,source));
+    function createTile(value, source) {
+      const el = document.createElement('div');
+      const placeValue = getPlaceValueType(value);
+      const digits = getDigitsArray(value);
+
+      el.className = `tile ${placeValue}`;
+      el.dataset.value = value;
+      el.dataset.placeValue = placeValue;
+      el.dataset.source = source;
+
+      // Create individual digit blocks (including commas and decimal points)
+      digits.forEach(char => {
+        const digitBlock = document.createElement('div');
+        if (char === ',') {
+          digitBlock.className = 'digit-block comma-block';
+          digitBlock.textContent = ',';
+        } else if (char === '.') {
+          digitBlock.className = 'digit-block decimal-block';
+          digitBlock.textContent = '.';
+        } else {
+          digitBlock.className = 'digit-block';
+          digitBlock.textContent = char;
+        }
+        el.appendChild(digitBlock);
+      });
+
+      el.addEventListener('pointerdown', (e) => onPointerStart(e, value, source));
       return el;
     }
 
-    function renderTray(){
-      const lvl=parseInt(document.getElementById('lessonSelect').value,10);
-
-      // collect all tiles
-      let allBlue=[], allYellow=[];
-      redTiles=[]; greenTiles=[]; orangeTiles=[]; purpleTiles=[];
-
-      for(let i=2;i<=lvl;i++){
-        const L=B_LEVELS[i]; if(!L) continue;
-        if(L.blue)   allBlue.push(...L.blue);
-        if(L.yellow) allYellow.push(...L.yellow);
-        if(L.red)    redTiles.push(...L.red);
-        if(L.green)  greenTiles.push(...L.green);
-        if(L.orange) orangeTiles.push(...L.orange);
-        if(L.purple) purpleTiles.push(...L.purple);
-      }
-
-      // sort and organize by category
-      blueConsonants=getUniqueSorted(allBlue);
-      yellowVowels=getUniqueSorted(allYellow);
-      redTiles=getUniqueSorted(redTiles);
-      greenTiles=getUniqueSorted(greenTiles);
-      orangeTiles=getUniqueSorted(orangeTiles);
-      purpleTiles=getUniqueSorted(purpleTiles);
-
-      // render only the active drawer
+    function renderTray() {
       renderActiveDrawer();
     }
 
-    function renderActiveDrawer(){
+    function renderActiveDrawer() {
       const baseRow = document.getElementById('baseRow');
       baseRow.innerHTML = '';
 
       let tilesToRender = [];
-      let color = 'blue';
-
-      switch(activeDrawer){
-        case 'consonants':
-          tilesToRender = blueConsonants.filter(c => c.length > 1); // exclude single letters
-          color = 'blue';
+      switch(activeDrawer) {
+        case 'thousandths':
+          tilesToRender = PLACE_VALUES.thousandths;
           break;
-        case 'vowels':
-          tilesToRender = yellowVowels.filter(v => v.length > 1); // exclude single letters
-          color = 'yellow';
+        case 'hundredths':
+          tilesToRender = PLACE_VALUES.hundredths;
           break;
-        case 'units':
-          tilesToRender = redTiles;
-          color = 'red';
+        case 'tenths':
+          tilesToRender = PLACE_VALUES.tenths;
           break;
-        case 'endings':
-          tilesToRender = greenTiles;
-          color = 'green';
+        case 'ones':
+          tilesToRender = PLACE_VALUES.ones;
           break;
-        case 'prefixes':
-          tilesToRender = orangeTiles;
-          color = 'orange';
+        case 'tens':
+          tilesToRender = PLACE_VALUES.tens;
           break;
-        case 'roots':
-          tilesToRender = purpleTiles;
-          color = 'purple';
+        case 'hundreds':
+          tilesToRender = PLACE_VALUES.hundreds;
+          break;
+        case 'thousands':
+          tilesToRender = PLACE_VALUES.thousands;
+          break;
+        case 'tenThousands':
+          tilesToRender = PLACE_VALUES.tenThousands;
+          break;
+        case 'hundredThousands':
+          tilesToRender = PLACE_VALUES.hundredThousands;
+          break;
+        case 'millions':
+          tilesToRender = PLACE_VALUES.millions;
           break;
       }
 
       // render tiles for active drawer
-      tilesToRender.forEach(txt => {
-        baseRow.appendChild(createTile(txt, color, 'tray'));
+      tilesToRender.forEach(val => {
+        baseRow.appendChild(createTile(val, 'tray'));
       });
     }
 
-    function renderAlphabet(){
-      const alphabet = 'abcdefghijklmnopqrstuvwxyz'.split('');
-      const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
+    function renderWorkPane() {
+      const workPane = document.getElementById('workPane');
+      const hint = workPane.querySelector('.hint');
+      workPane.querySelectorAll('.work-pane-tile').forEach(el => el.remove());
+      hint.style.display = tiles.length > 0 ? 'none' : 'block';
 
-      // First row: a-m (13 letters)
-      const row1 = document.getElementById('alphabetRow1');
-      row1.innerHTML = '';
-      alphabet.slice(0, 13).forEach(letter => {
-        const color = vowels.has(letter) ? 'yellow' : 'blue';
-        row1.appendChild(createTile(letter, color, 'alphabet'));
-      });
+      // Sort by z-index so overlays render on top
+      const sortedTiles = [...tiles].sort((a, b) => a.zIndex - b.zIndex);
 
-      // Second row: n-z (13 letters)
-      const row2 = document.getElementById('alphabetRow2');
-      row2.innerHTML = '';
-      alphabet.slice(13, 26).forEach(letter => {
-        const color = vowels.has(letter) ? 'yellow' : 'blue';
-        row2.appendChild(createTile(letter, color, 'alphabet'));
+      sortedTiles.forEach(tile => {
+        const digits = getDigitsArray(tile.value);
+
+        const el = document.createElement('div');
+        el.className = `tile work-pane-tile ${tile.placeValue}`;
+        el.dataset.value = tile.value;
+        el.dataset.placeValue = tile.placeValue;
+        
+        // Always render all digits/commas/decimals - cards maintain their full value
+        digits.forEach(char => {
+          const digitBlock = document.createElement('div');
+          if (char === ',') {
+            digitBlock.className = 'digit-block comma-block';
+            digitBlock.textContent = ',';
+          } else if (char === '.') {
+            digitBlock.className = 'digit-block decimal-block';
+            digitBlock.textContent = '.';
+          } else {
+            digitBlock.className = 'digit-block';
+            digitBlock.textContent = char;
+          }
+          el.appendChild(digitBlock);
+        });
+
+        el.style.left = tile.x + 'px';
+        el.style.top = tile.y + 'px';
+        el.style.zIndex = tile.zIndex;
+
+        el.addEventListener('pointerdown', (e) => onPointerStart(e, tile.value, tile.id));
+        workPane.appendChild(el);
       });
     }
 
-    function renderWordPane(){
-      const wordPane=document.getElementById('wordPane');
-      const hint=wordPane.querySelector('.hint');
-      wordPane.querySelectorAll('.word-pane-tile').forEach(el=>el.remove());
-      hint.style.display = tiles.length>0 ? 'none' : 'block';
+    // ====== DRAG HANDLING ======
+    function onPointerStart(e, value, source) {
+      e.preventDefault();
+      e.stopPropagation();
 
-      tiles.forEach(tile=>{
-        if(draggedGroup.find(t=>t.id===tile.id)) return;
-        const el=document.createElement('div');
-        el.className=`tile ${tile.color} word-pane-tile`;
-        el.textContent=tile.text;
-        el.style.width=getTileWidth(tile.text)+'px';
-        el.style.fontSize=getFontSize(tile.text);
-        el.style.left=tile.x+'px';
-        el.style.top=tile.y+'px';
-        el.dataset.id=tile.id;
-        el.addEventListener('pointerdown',(e)=>onPointerStart(e,tile.text,tile.color,tile.id));
-        wordPane.appendChild(el);
-      });
-    }
-
-    // ====== SNAP (half-tile overlap detection) ======
-    function findNearbyTiles(dropX, dropY, excludeId, dragTileText){
-      const dragWidth = getTileWidth(dragTileText);
-      const dragLeft=dropX, dragRight=dropX+dragWidth, dragTop=dropY, dragBottom=dropY+TILE_HEIGHT;
-      const halfTile = TILE_HEIGHT / 2;
-      const candidates=[];
-
-      for(const tile of tiles){
-        if(tile.id===excludeId) continue;
-        const nbrWidth = getTileWidth(tile.text);
-        const nbrLeft=tile.x, nbrRight=tile.x+nbrWidth, nbrTop=tile.y, nbrBottom=tile.y+TILE_HEIGHT;
-
-        // Check vertical overlap first
-        const overlapY=Math.min(dragBottom,nbrBottom) - Math.max(dragTop,nbrTop);
-        if(overlapY<=0 || overlapY<MIN_VERTICAL_OVERLAP) continue;
-
-        // Check if left half of drag tile overlaps with right half of stationary tile
-        const dragHalfWidth = dragWidth / 2;
-        const nbrHalfWidth = nbrWidth / 2;
-        const leftHalfDragStart = dragLeft;
-        const leftHalfDragEnd = dragLeft + dragHalfWidth;
-        const rightHalfNbrStart = nbrLeft + nbrHalfWidth;
-        const rightHalfNbrEnd = nbrRight;
-
-        if(Math.max(leftHalfDragStart, rightHalfNbrStart) < Math.min(leftHalfDragEnd, rightHalfNbrEnd)){
-          // Snap to the right side of the stationary tile
-          candidates.push({ tile, edge:'right', snapX:nbrRight, snapY:tile.y });
-        }
-
-        // Check if right half of drag tile overlaps with left half of stationary tile
-        const rightHalfDragStart = dragLeft + dragHalfWidth;
-        const rightHalfDragEnd = dragRight;
-        const leftHalfNbrStart = nbrLeft;
-        const leftHalfNbrEnd = nbrLeft + nbrHalfWidth;
-
-        if(Math.max(rightHalfDragStart, leftHalfNbrStart) < Math.min(rightHalfDragEnd, leftHalfNbrEnd)){
-          // Snap to the left side of the stationary tile
-          candidates.push({ tile, edge:'left', snapX:nbrLeft - dragWidth, snapY:tile.y });
-        }
+      if (e.currentTarget.setPointerCapture) {
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch(_) {}
       }
 
-      // Sort to prioritize snapping to groups (contiguous letter units)
-      candidates.sort((a,b)=>{
-        // Check if tiles are part of groups (have neighbors)
-        const aHasGroup = hasAdjacentTile(a.tile, a.edge);
-        const bHasGroup = hasAdjacentTile(b.tile, b.edge);
+      const targetRect = e.currentTarget.getBoundingClientRect();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const tStart = performance.now();
 
-        // Strongly prefer snapping to tiles that are part of groups
-        if(aHasGroup && !bHasGroup) return -1;
-        if(!aHasGroup && bHasGroup) return 1;
+      gesture = {
+        startX,
+        startY,
+        tStart,
+        moved: false,
+        lastX: startX,
+        lastY: startY,
+        source,
+        value,
+        pointerType: e.pointerType
+      };
 
-        // If both have groups or both don't, sort by distance
-        const aTileWidth = getTileWidth(a.tile.text);
-        const bTileWidth = getTileWidth(b.tile.text);
-        const ax=Math.abs(a.edge==='right'?(a.tile.x+aTileWidth)-dragLeft : a.tile.x - dragRight);
-        const bx=Math.abs(b.edge==='right'?(b.tile.x+bTileWidth)-dragLeft : b.tile.x - dragRight);
-        if(ax!==bx) return ax-bx;
-        const ay=Math.abs(a.snapY - dropY), by=Math.abs(b.snapY - dropY);
-        return ay - by;
-      });
-      return candidates;
-    }
+      const onMove = (ev) => {
+        const dx = ev.clientX - gesture.startX;
+        const dy = ev.clientY - gesture.startY;
+        gesture.lastX = ev.clientX;
+        gesture.lastY = ev.clientY;
 
-    // Helper to check if a tile has an adjacent tile on the opposite side
-    function hasAdjacentTile(tile, snapEdge){
-      // If snapping to the right edge, check if there's a tile to the tile's left
-      // If snapping to the left edge, check if there's a tile to the tile's right
-      const checkSide = snapEdge === 'right' ? 'left' : 'right';
-
-      for(const other of tiles){
-        if(other.id === tile.id) continue;
-        if(!sameRowY(other.y, tile.y)) continue;
-
-        if(checkSide === 'left'){
-          // Check if other is flush to the left of tile
-          if(areFlush(other, tile)) return true;
-        } else {
-          // Check if other is flush to the right of tile
-          if(areFlush(tile, other)) return true;
+        if (!gesture.moved && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+          gesture.moved = true;
+          beginDrag(gesture, targetRect);
         }
+        if (gesture.moved) handleMove(ev);
+      };
+
+      const onEnd = (ev) => {
+        handleEnd(ev);
+        cleanup();
+      };
+
+      function cleanup() {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onEnd);
+        document.removeEventListener('pointercancel', onEnd);
+        gesture = null;
       }
-      return false;
+
+      document.addEventListener('pointermove', onMove, {passive: false});
+      document.addEventListener('pointerup', onEnd, {passive: false});
+      document.addEventListener('pointercancel', onEnd, {passive: false});
     }
 
-    // ====== POINTERS / DRAG ======
-    function onPointerStart(e,text,color,source){
-      if(e.isPrimary===false) return;
-      e.preventDefault(); e.stopPropagation();
-      if(e.currentTarget.setPointerCapture){ try{ e.currentTarget.setPointerCapture(e.pointerId);}catch(_){} }
-      const targetRect=e.currentTarget.getBoundingClientRect();
-      const startX=e.clientX, startY=e.clientY, tStart=performance.now();
+    function beginDrag(g, targetRect) {
+      const startX = g.startX;
+      const startY = g.startY;
+      const source = g.source;
+      const placeValue = getPlaceValueType(g.value);
 
-      gesture={ startX, startY, tStart, moved:false, lastX:startX, lastY:startY, source, text, color, pointerType:e.pointerType };
-      const onMove=(ev)=>{
-        const dx=ev.clientX - gesture.startX, dy=ev.clientY - gesture.startY;
-        gesture.lastX=ev.clientX; gesture.lastY=ev.clientY;
-        if(!gesture.moved && (Math.abs(dx)>dragThresholdFor(ev) || Math.abs(dy)>dragThresholdFor(ev))){
-          gesture.moved=true; beginDrag(gesture, targetRect, dx, dy);
-        }
-        if(gesture.moved) handleMove(ev);
-      };
-      const onEnd=(ev)=>{
-        const dt=performance.now()-gesture.tStart;
-        const totalMove=Math.hypot(ev.clientX-gesture.startX, ev.clientY-gesture.startY);
-        if(!gesture.moved && dt<=TAP_MAX_TIME_MS && totalMove<=TAP_MAX_MOVE_PX){
-          // This was a tap - no action needed
-          cleanup();
-          return;
-        }
-        handleEnd(ev); cleanup();
-      };
-      function cleanup(){ document.removeEventListener('pointermove',onMove); document.removeEventListener('pointerup',onEnd); document.removeEventListener('pointercancel',onEnd); gesture=null; }
-      document.addEventListener('pointermove',onMove,{passive:false});
-      document.addEventListener('pointerup',onEnd,{passive:false});
-      document.addEventListener('pointercancel',onEnd,{passive:false});
-    }
-
-    function beginDrag(g, targetRect, dx=0, dy=0){
-      const startX=g.startX, startY=g.startY, source=g.source;
-
-      if(source==='tray' || source==='alphabet'){
-        draggedTile={ text:g.text, color:g.color, x:startX, y:startY, sourceType:'tray', startX, startY };
-        draggedGroup=[]; dragStartRowY=null;
+      if (source === 'tray') {
+        draggedTile = {
+          value: g.value,
+          placeValue,
+          x: startX,
+          y: startY,
+          sourceType: 'tray',
+          startX,
+          startY
+        };
       } else {
-        const paneTile=tiles.find(t=>t.id===source); if(!paneTile) return;
-        const chain=getGroupChain(paneTile);
-        const idx=chain.findIndex(t=>t.id===paneTile.id);
-        const horizontal=Math.abs(dx) >= Math.abs(dy);
-        if(!horizontal) draggedGroup=[paneTile];
-        else if(dx<0)   draggedGroup=chain.slice(0, idx+1);
-        else            draggedGroup=chain.slice(idx);
+        const paneTile = tiles.find(t => t.id === source);
+        if (!paneTile) return;
 
-        draggedTile={ ...paneTile, x:startX, y:startY, sourceType:'pane', startX, startY };
-        dragStartRowY=paneTile.y;
+        draggedTile = {
+          ...paneTile,
+          x: startX,
+          y: startY,
+          sourceType: 'pane',
+          startX,
+          startY
+        };
       }
-      dragOffset={ x:startX - targetRect.left, y:startY - targetRect.top };
+
+      dragOffset = {
+        x: startX - targetRect.left,
+        y: startY - targetRect.top
+      };
+
       updateDragVisual();
     }
 
-    function handleMove(e){
-      if(!draggedTile) return;
+    function handleMove(e) {
+      if (!draggedTile) return;
       e.preventDefault();
-      draggedTile.x=e.clientX; draggedTile.y=e.clientY;
+      draggedTile.x = e.clientX;
+      draggedTile.y = e.clientY;
       updateDragVisual();
     }
 
-    function handleEnd(e){
-      if(!draggedTile) return;
+    function handleEnd(e) {
+      if (!draggedTile) return;
       e.preventDefault();
 
-      const wordPane=document.getElementById('wordPane');
-      const paneRect=wordPane.getBoundingClientRect();
+      const workPane = document.getElementById('workPane');
+      const paneRect = workPane.getBoundingClientRect();
 
-      const inside = e.clientX>=paneRect.left && e.clientX<=paneRect.right && e.clientY>=paneRect.top && e.clientY<=paneRect.bottom;
+      const inside = e.clientX >= paneRect.left &&
+                     e.clientX <= paneRect.right &&
+                     e.clientY >= paneRect.top &&
+                     e.clientY <= paneRect.bottom;
 
-      if(inside){
-        let dropX=e.clientX - paneRect.left - dragOffset.x;
-        let dropY=e.clientY - paneRect.top  - dragOffset.y;
+      if (inside) {
+        let dropX = e.clientX - paneRect.left - dragOffset.x;
+        let dropY = e.clientY - paneRect.top - dragOffset.y;
 
-        if(draggedTile.sourceType==='tray'){
-          const seam=findSeamNear(dropX, dropY);
-          if(seam){ insertAtSeam({text:draggedTile.text,color:draggedTile.color}, seam); finish(); return; }
+        if (draggedTile.sourceType === 'tray') {
+          // New tile from tray
+          const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, null);
 
-          const nearby=findNearbyTiles(dropX, dropY, null, draggedTile.text);
-          let finalX=dropX, finalY=dropY, groupId=null;
-          if(nearby.length>0){ const c=nearby[0]; finalX=c.snapX; finalY=c.snapY; groupId=c.tile.groupId || c.tile.id; }
-          const newTile={ id:Date.now()+Math.random(), text:draggedTile.text, color:draggedTile.color, x:finalX, y:finalY, groupId };
+          let finalX = dropX;
+          let finalY = dropY;
+          let parentId = null;
+          
+          // Z-index based on place value
+          // Millions (7) = highest z-index (1007)
+          // ... decreasing ...
+          // Ones (1) = z-index 1001
+          // Tenths (0) = z-index 1000
+          // Hundredths (-1) = z-index 999
+          // Thousandths (-2) = z-index 998 (lowest)
+          const order = getPlaceValueOrder(draggedTile.placeValue);
+          let zIndex = 1000 + order;
+
+          if (overlay) {
+            finalX = overlay.snapX;
+            finalY = overlay.snapY;
+            parentId = overlay.tile.id;
+          }
+
+          const newTile = {
+            id: Date.now() + Math.random(),
+            value: draggedTile.value,
+            placeValue: draggedTile.placeValue,
+            x: finalX,
+            y: finalY,
+            parentId,
+            zIndex
+          };
           tiles.push(newTile);
-          recomputeGroupsAround(finalY);
         } else {
-          if(draggedGroup.length>0){
-            if(draggedGroup.length===1){
-              const seam=findSeamNear(dropX, dropY);
-              if(seam){
-                const only=draggedGroup[0]; const originY=only.y;
-                tiles=tiles.filter(t=>t.id!==only.id);
-                if(dragStartRowY!==null) recomputeGroupsAround(originY);
-                insertAtSeam({text:only.text,color:only.color}, seam);
-                finish(); return;
-              }
+          // Moving existing tile
+          const existingTile = tiles.find(t => t.id === draggedTile.id);
+          if (existingTile) {
+            const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, draggedTile.id);
+
+            if (overlay) {
+              existingTile.x = overlay.snapX;
+              existingTile.y = overlay.snapY;
+              existingTile.parentId = overlay.tile.id;
+            } else {
+              existingTile.x = dropX;
+              existingTile.y = dropY;
+              existingTile.parentId = null;
             }
-            const main=draggedGroup.find(gt=>gt.id===draggedTile.id);
-            const mainDropX=e.clientX - paneRect.left - (draggedTile.startX - main.x);
-            const mainDropY=e.clientY - paneRect.top  - (draggedTile.startY - main.y);
-
-            const nearMain=findNearbyTiles(mainDropX, mainDropY, draggedTile.id, main.text);
-            let snapAdj={dx:0,dy:0,groupId:null};
-            if(nearMain.length>0){ const c=nearMain[0]; snapAdj.dx=c.snapX-mainDropX; snapAdj.dy=c.snapY-mainDropY; snapAdj.groupId=c.tile.groupId||c.tile.id; }
-
-            tiles=tiles.map(t=>{
-              const inGroup=draggedGroup.some(gt=>gt.id===t.id);
-              if(!inGroup) return t;
-              const before=draggedGroup.find(gt=>gt.id===draggedTile.id);
-              const offX=t.x - before.x, offY=t.y - before.y;
-              return { ...t, x:mainDropX + offX + snapAdj.dx, y:mainDropY + offY + snapAdj.dy, groupId:snapAdj.groupId||null };
-            });
-            if(dragStartRowY!==null) recomputeGroupsAround(dragStartRowY);
-            recomputeGroupsAround(mainDropY + snapAdj.dy);
+            // Z-index always based on place value
+            const order = getPlaceValueOrder(existingTile.placeValue);
+            existingTile.zIndex = 1000 + order;
           }
         }
-      } else if(draggedTile.sourceType==='pane'){
-        if(draggedGroup.length>0){
-          const ids=new Set(draggedGroup.map(t=>t.id));
-          const originY=draggedGroup[0].y;
-          tiles=tiles.filter(t=>!ids.has(t.id));
-          if(dragStartRowY!==null) recomputeGroupsAround(originY);
-        }
+      } else if (draggedTile.sourceType === 'pane') {
+        // Remove tile if dragged outside
+        tiles = tiles.filter(t => t.id !== draggedTile.id);
       }
+
       finish();
 
-      function finish(){ draggedTile=null; draggedGroup=[]; dragStartRowY=null; clearDragVisual(); renderWordPane(); }
+      function finish() {
+        draggedTile = null;
+        clearDragVisual();
+        renderWorkPane();
+      }
     }
 
     // ====== DRAG VISUALS ======
-    function updateDragVisual(){
+    function updateDragVisual() {
       clearDragVisual();
-      if(!draggedTile) return;
-      const paneRect=document.getElementById('wordPane').getBoundingClientRect();
+      if (!draggedTile) return;
 
-      if(draggedGroup.length>0){
-        const dx=draggedTile.x - draggedTile.startX, dy=draggedTile.y - draggedTile.startY;
-        draggedGroup.forEach(t=>{
-          const g=document.createElement('div');
-          g.className=`tile ${t.color} dragging`;
-          g.textContent=t.text;
-          g.style.width=getTileWidth(t.text)+'px';
-          g.style.fontSize=getFontSize(t.text);
-          const gx=t.x + dx + paneRect.left, gy=t.y + dy + paneRect.top;
-          g.style.transform=`translate3d(${Math.round(gx)}px, ${Math.round(gy)}px, 0)`;
-          g.dataset.dragging='true';
-          document.body.appendChild(g);
-        });
-      } else {
-        const g=document.createElement('div');
-        g.className=`tile ${draggedTile.color} dragging`;
-        g.textContent=draggedTile.text;
-        g.style.width=getTileWidth(draggedTile.text)+'px';
-        g.style.fontSize=getFontSize(draggedTile.text);
-        const gx=draggedTile.x - dragOffset.x, gy=draggedTile.y - dragOffset.y;
-        g.style.transform=`translate3d(${Math.round(gx)}px, ${Math.round(gy)}px, 0)`;
-        g.dataset.dragging='true';
-        document.body.appendChild(g);
-      }
+      const g = document.createElement('div');
+      g.className = `tile ${draggedTile.placeValue} dragging`;
+
+      const digits = getDigitsArray(draggedTile.value);
+      digits.forEach(char => {
+        const digitBlock = document.createElement('div');
+        if (char === ',') {
+          digitBlock.className = 'digit-block comma-block';
+          digitBlock.textContent = ',';
+        } else if (char === '.') {
+          digitBlock.className = 'digit-block decimal-block';
+          digitBlock.textContent = '.';
+        } else {
+          digitBlock.className = 'digit-block';
+          digitBlock.textContent = char;
+        }
+        g.appendChild(digitBlock);
+      });
+
+      const gx = draggedTile.x - dragOffset.x;
+      const gy = draggedTile.y - dragOffset.y;
+      g.style.transform = `translate3d(${Math.round(gx)}px, ${Math.round(gy)}px, 0)`;
+      g.dataset.dragging = 'true';
+      document.body.appendChild(g);
     }
-    function clearDragVisual(){ document.querySelectorAll('[data-dragging="true"]').forEach(el=>el.remove()); }
+
+    function clearDragVisual() {
+      document.querySelectorAll('[data-dragging="true"]').forEach(el => el.remove());
+    }
 
     // ====== DRAWER TAB SWITCHING ======
-    function switchDrawer(drawerName){
+    function switchDrawer(drawerName) {
       activeDrawer = drawerName;
 
       // update tab active states
       document.querySelectorAll('.drawer-tab').forEach(tab => {
-        if(tab.dataset.drawer === drawerName){
+        if (tab.dataset.drawer === drawerName) {
           tab.classList.add('active');
         } else {
           tab.classList.remove('active');
@@ -606,8 +700,12 @@
     }
 
     // ====== BOOT ======
-    document.getElementById('lessonSelect').addEventListener('change', renderTray);
-    document.getElementById('resetButton').addEventListener('click', ()=>{ tiles=[]; draggedTile=null; draggedGroup=[]; dragStartRowY=null; clearDragVisual(); renderWordPane(); });
+    document.getElementById('resetButton').addEventListener('click', () => {
+      tiles = [];
+      draggedTile = null;
+      clearDragVisual();
+      renderWorkPane();
+    });
 
     // setup drawer tab listeners
     document.querySelectorAll('.drawer-tab').forEach(tab => {
@@ -617,9 +715,8 @@
       });
     });
 
-    renderAlphabet();
     renderTray();
-    renderWordPane();
+    renderWorkPane();
   </script>
 </body>
 </html>
