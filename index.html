@@ -21,6 +21,28 @@
     /* workspace leaves room for tile dock */
     #workPane{position:absolute;inset:0 0 30vh 0;background:transparent;overflow:hidden}
     .hint{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);color:#6b7280;font-size:17px;text-align:center;pointer-events:none}
+    
+    /* Snap line for place value alignment */
+    #snapLine{
+      position:absolute;
+      top:50%;
+      left:10%;
+      right:10%;
+      height:2px;
+      background:#9ca3af;
+      pointer-events:none;
+      z-index:5;
+    }
+    #snapLine::after{
+      content:'Drag cards here';
+      position:absolute;
+      left:50%;
+      top:-25px;
+      transform:translateX(-50%);
+      color:#6b7280;
+      font-size:14px;
+      white-space:nowrap;
+    }
 
     /* Card container - holds multiple digit blocks */
     .tile{
@@ -92,6 +114,7 @@
 <body>
   <div id="app">
     <div id="workPane">
+      <div id="snapLine"></div>
       <div class="hint">Drag place value blocks here to build numbers.</div>
       <div id="controls">
         <button id="resetButton" class="btn danger">Reset</button>
@@ -126,6 +149,8 @@
     const BLOCK_HEIGHT = 120;
     const BLOCK_GAP = 0;
     const SNAP_DISTANCE = 30;
+    const SNAP_LINE_DISTANCE = 60; // How close to snap to the line
+    const DECIMAL_POINT_X = window.innerWidth / 2; // Center of screen is the decimal point
 
     // ====== PLACE VALUE DATA ======
     const PLACE_VALUES = {
@@ -168,7 +193,7 @@
       // Format number with proper decimals
       let str;
       if (value < 1) {
-        // Decimal values - show full value with leading 0
+        // Decimal values - show as .1, .01, .001 (no leading 0)
         if (value < 0.01) {
           str = value.toFixed(3); // 0.001 format
         } else if (value < 0.1) {
@@ -176,11 +201,11 @@
         } else {
           str = value.toFixed(1); // 0.1 format
         }
-        // Return as: 0 . 1 or 0 . 0 1 or 0 . 0 0 1
+        // Return just the decimal part: . 1 or . 0 1 or . 0 0 1
         const parts = str.split('.');
-        return ['0', '.', ...parts[1].split('')];
+        return ['.', ...parts[1].split('')];
       } else {
-        // Whole numbers - convert to string
+        // Whole numbers - no decimal point
         str = String(Math.floor(value));
       }
       
@@ -197,18 +222,17 @@
         }
       }
       
-      // Add decimal point to whole number cards (at the ones place)
-      result.push('.');
+      // No decimal point for whole numbers
       
       return result;
     }
 
     function getNumBlocks(placeValue) {
       const blocks = { 
-        thousandths: 4,  // 0.001 (0 + decimal + 3 digits, but decimal is narrow)
-        hundredths: 3,   // 0.01 (0 + decimal + 2 digits)
-        tenths: 2,       // 0.1 (0 + decimal + 1 digit)
-        ones: 1,         // 1 (decimal point doesn't count in width)
+        thousandths: 4,  // .001 (decimal + 3 digits)
+        hundredths: 3,   // .01 (decimal + 2 digits)
+        tenths: 2,       // .1 (decimal + 1 digit)
+        ones: 1,         // 1 (no decimal)
         tens: 2,         // 10
         hundreds: 3,     // 100
         thousands: 4,    // 1,000 (comma is narrow)
@@ -220,8 +244,31 @@
     }
 
     function getCardWidth(placeValue) {
-      const numBlocks = getNumBlocks(placeValue);
-      return numBlocks * BLOCK_SIZE + (numBlocks - 1) * BLOCK_GAP;
+      const digits = getDigitsArray(
+        placeValue === 'ones' ? 1 :
+        placeValue === 'tens' ? 10 :
+        placeValue === 'hundreds' ? 100 :
+        placeValue === 'thousands' ? 1000 :
+        placeValue === 'tenThousands' ? 10000 :
+        placeValue === 'hundredThousands' ? 100000 :
+        placeValue === 'millions' ? 1000000 :
+        placeValue === 'tenths' ? 0.1 :
+        placeValue === 'hundredths' ? 0.01 :
+        0.001
+      );
+      
+      let width = 0;
+      for (let char of digits) {
+        if (char === ',') {
+          width += 20; // comma width
+        } else if (char === '.') {
+          width += 8; // decimal point width
+        } else {
+          width += BLOCK_SIZE; // digit width
+        }
+      }
+      
+      return width;
     }
 
     function getPlaceValueOrder(placeValue) {
@@ -238,6 +285,36 @@
         ones: 10
       };
       return order[placeValue];
+    }
+
+    // Calculate where a card should snap on the snap line
+    function getSnapLinePosition(placeValue) {
+      const workPane = document.getElementById('workPane');
+      const paneRect = workPane.getBoundingClientRect();
+      const snapLine = document.getElementById('snapLine');
+      const lineRect = snapLine.getBoundingClientRect();
+      
+      // Y position is the snap line
+      const snapY = lineRect.top - paneRect.top - BLOCK_HEIGHT / 2;
+      
+      // X position depends on place value
+      // Decimal point is at center of screen
+      // Whole numbers extend left, decimals extend right
+      const centerX = (paneRect.width / 2);
+      const cardWidth = getCardWidth(placeValue);
+      
+      const isDecimal = placeValue === 'thousandths' || placeValue === 'hundredths' || placeValue === 'tenths';
+      
+      if (isDecimal) {
+        // Decimal cards: start with decimal point at center
+        // Format is ".1" or ".01" or ".001"
+        const snapX = centerX;
+        return { x: snapX, y: snapY };
+      } else {
+        // Whole number cards: right edge at center
+        const snapX = centerX - cardWidth;
+        return { x: snapX, y: snapY };
+      }
     }
 
     // Calculate which digits are visible for a tile considering overlays
@@ -295,24 +372,22 @@
         
         if (!droppedIsDecimal && !targetIsDecimal && droppedOrder > targetOrder) {
           // Whole number overlaying whole number
-          // Align right edges (which aligns the decimal points since decimal is at right edge)
+          // Align right edges (imaginary decimal point location)
           canOverlay = true;
           const targetWidth = getCardWidth(tile.placeValue);
           snapX = tile.x + targetWidth - droppedWidth;
           snapY = tile.y;
         } else if (droppedIsDecimal && !targetIsDecimal) {
           // Decimal card underlaying whole number
-          // Align ones place: target's decimal is at right edge, dropped decimal is after the "0"
+          // Target's right edge is where decimal point would be
+          // Dropped card starts with decimal point
           canOverlay = true;
           const targetWidth = getCardWidth(tile.placeValue);
-          // Target's decimal point is at (tile.x + targetWidth)
-          // Dropped card's decimal point is at (snapX + BLOCK_SIZE) since "0" takes one block
-          // So: snapX + BLOCK_SIZE = tile.x + targetWidth
-          snapX = tile.x + targetWidth - BLOCK_SIZE;
+          snapX = tile.x + targetWidth;
           snapY = tile.y;
         } else if (droppedIsDecimal && targetIsDecimal && droppedOrder > targetOrder) {
           // Decimal overlaying/underlaying another decimal
-          // Both have "0." at the same position, so same x
+          // Both start with ".", so same x
           canOverlay = true;
           snapX = tile.x;
           snapY = tile.y;
@@ -579,30 +654,38 @@
         let dropX = e.clientX - paneRect.left - dragOffset.x;
         let dropY = e.clientY - paneRect.top - dragOffset.y;
 
-        if (draggedTile.sourceType === 'tray') {
-          // New tile from tray
-          const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, null);
+        // Check if near snap line
+        const snapLinePos = getSnapLinePosition(draggedTile.placeValue);
+        const distanceToLine = Math.sqrt(
+          Math.pow(dropX - snapLinePos.x, 2) + 
+          Math.pow(dropY - snapLinePos.y, 2)
+        );
 
-          let finalX = dropX;
-          let finalY = dropY;
-          let parentId = null;
-          
-          // Z-index based on place value
-          // Millions (7) = highest z-index (1007)
-          // ... decreasing ...
-          // Ones (1) = z-index 1001
-          // Tenths (0) = z-index 1000
-          // Hundredths (-1) = z-index 999
-          // Thousandths (-2) = z-index 998 (lowest)
-          const order = getPlaceValueOrder(draggedTile.placeValue);
-          let zIndex = 1000 + order;
+        let finalX, finalY, parentId = null;
+        const order = getPlaceValueOrder(draggedTile.placeValue);
+        let zIndex = 1000 + order;
+
+        if (distanceToLine < SNAP_LINE_DISTANCE) {
+          // Snap to line at correct place value position
+          finalX = snapLinePos.x;
+          finalY = snapLinePos.y;
+        } else {
+          // Free-form placement or overlay on another card
+          const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, 
+            draggedTile.sourceType === 'pane' ? draggedTile.id : null);
 
           if (overlay) {
             finalX = overlay.snapX;
             finalY = overlay.snapY;
             parentId = overlay.tile.id;
+          } else {
+            finalX = dropX;
+            finalY = dropY;
           }
+        }
 
+        if (draggedTile.sourceType === 'tray') {
+          // New tile from tray
           const newTile = {
             id: Date.now() + Math.random(),
             value: draggedTile.value,
@@ -617,20 +700,10 @@
           // Moving existing tile
           const existingTile = tiles.find(t => t.id === draggedTile.id);
           if (existingTile) {
-            const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, draggedTile.id);
-
-            if (overlay) {
-              existingTile.x = overlay.snapX;
-              existingTile.y = overlay.snapY;
-              existingTile.parentId = overlay.tile.id;
-            } else {
-              existingTile.x = dropX;
-              existingTile.y = dropY;
-              existingTile.parentId = null;
-            }
-            // Z-index always based on place value
-            const order = getPlaceValueOrder(existingTile.placeValue);
-            existingTile.zIndex = 1000 + order;
+            existingTile.x = finalX;
+            existingTile.y = finalY;
+            existingTile.parentId = parentId;
+            existingTile.zIndex = zIndex;
           }
         }
       } else if (draggedTile.sourceType === 'pane') {
