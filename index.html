@@ -90,7 +90,7 @@
       overflow:hidden;
     }
 
-    .tile.dragging{position:fixed;z-index:1000;opacity:.95;pointer-events:none;will-change:transform;left:0;top:0}
+    .tile.dragging{position:fixed;opacity:.95;pointer-events:none;will-change:transform;left:0;top:0}
     .work-pane-tile{position:absolute}
 
     #controls{position:absolute;top:8px;left:8px;display:flex;gap:6px;z-index:10}
@@ -747,6 +747,11 @@
       const gx = draggedTile.x - dragOffset.x;
       const gy = draggedTile.y - dragOffset.y;
       g.style.transform = `translate3d(${Math.round(gx)}px, ${Math.round(gy)}px, 0)`;
+      
+      // Set z-index based on place value so it maintains correct layer
+      const order = getPlaceValueOrder(draggedTile.placeValue);
+      g.style.zIndex = 1000 + order;
+      
       g.dataset.dragging = 'true';
       document.body.appendChild(g);
     }
