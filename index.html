@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-  <title>Place Value Blocks</title>
+  <title>Place Value: Resource Edition</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;900&display=swap" rel="stylesheet"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -11,210 +11,271 @@
       --bg:#f3f4f6; 
       --ink:#111827;
       --tray:#1f2937; 
-      --tab-inactive:#374151;
-      --tab-active:#4b5563;
-      --shadow:rgba(0,0,0,.25);
+      --accent:#3b82f6;
       --block-size: 60px;
       --block-height: 110px;
       
-      /* Montessori-style Colors */
-      /* Ones family (Green) */
+      /* Montessori Colors */
       --c-ones: #16a34a; 
-      --c-thousands: #16a34a;
-      --c-millions: #16a34a;
-      
-      /* Tens family (Blue) */
       --c-tens: #2563eb;
-      --c-ten-thousands: #2563eb;
-      
-      /* Hundreds family (Red) */
       --c-hundreds: #dc2626;
-      --c-hundred-thousands: #dc2626;
-
-      /* Decimals (Lighter versions) */
-      --c-tenths: #93c5fd; /* Light Blue */
-      --c-hundredths: #fca5a5; /* Light Red */
-      --c-thousandths: #86efac; /* Light Green */
+      --c-tenths: #93c5fd; 
+      --c-hundredths: #fca5a5; 
+      --c-thousandths: #86efac;
     }
 
-    body{font-family:'Lexend',sans-serif;background:var(--bg);color:var(--ink);height:100vh;overflow:hidden;touch-action:manipulation}
+    body{font-family:'Lexend',sans-serif;background:var(--bg);color:var(--ink);height:100vh;overflow:hidden;touch-action:manipulation; user-select: none;}
 
-    #app{position:relative;height:100%;width:100%}
+    #app{position:relative;height:100%;width:100%; display:flex; flex-direction:column;}
 
-    /* WORKSPACE */
-    #workPane{position:absolute;inset:0 0 30vh 0;background:radial-gradient(circle at center, #ffffff 0%, #e5e7eb 100%);overflow:hidden}
+    /* === TOP DASHBOARD === */
+    #dashboard {
+      height: 60px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 50;
+    }
+
+    .dash-group { display: flex; align-items: center; gap: 15px; }
+
+    /* Total Display */
+    #totalDisplay {
+      font-size: 24px;
+      font-weight: 900;
+      color: #374151;
+      background: #f3f4f6;
+      padding: 5px 20px;
+      border-radius: 30px;
+      min-width: 100px;
+      text-align: center;
+      border: 2px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Controls */
+    .btn {
+      border: none;
+      background: #374151;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.1s, background 0.2s;
+      font-size: 14px;
+    }
+    .btn:hover { background: #1f2937; transform: translateY(-1px); }
+    .btn:active { transform: translateY(1px); }
     
-    .hint{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);color:#9ca3af;font-size:18px;text-align:center;pointer-events:none; font-weight:600; opacity: 0.7;}
+    .btn-icon { font-size: 18px; }
+    .btn-primary { background: var(--accent); }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-danger { background: #ef4444; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-success { background: #10b981; }
     
-    /* Snap line for place value alignment */
+    /* Challenge Banner */
+    #challengeBanner {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: #facc15;
+      padding: 10px 24px;
+      border-radius: 50px;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 40;
+      display: none; /* Hidden by default */
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn { from{transform:translate(-50%, -20px) scale(0.9); opacity:0;} to{transform:translate(-50%, 0) scale(1); opacity:1;} }
+
+    /* === WORKSPACE === */
+    #workPane{
+      flex: 1;
+      position:relative;
+      background:radial-gradient(circle at center, #ffffff 0%, #f3f4f6 100%);
+      overflow:hidden;
+    }
+    
     #snapLine{
       position:absolute;
       top:50%;
-      left:0;
-      right:0;
+      left:0; right:0;
       height:4px;
       background:rgba(0,0,0,0.1);
       pointer-events:none;
       z-index:5;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display:flex; align-items:center; justify-content:center;
     }
-    /* The center Decimal Point Indicator */
     #snapLine::after{
       content:'.';
-      font-size: 60px;
-      font-weight: 900;
-      color: #111827;
-      margin-bottom: 20px; /* Align visually with text baseline */
-      text-shadow: 0 2px 0 rgba(255,255,255,1);
+      font-size: 60px; font-weight: 900; color: #111827;
+      margin-bottom: 20px; text-shadow: 0 2px 0 rgba(255,255,255,1);
     }
 
-    /* CARD STYLES */
-    .tile{
-      height:var(--block-height);
-      display:flex;
-      cursor:grab;
-      user-select:none;
-      flex-shrink:0;
-      touch-action:none;
-      border-radius:8px;
-      box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
-      overflow:hidden;
-      transition: transform 0.1s;
-      background: white; /* Fallback */
-    }
-    .tile:active{cursor:grabbing; transform: scale(1.02);}
-    .tile.dragging{position:fixed;opacity:0.9;pointer-events:none;will-change:transform;left:0;top:0; z-index: 9999 !important;}
-    .work-pane-tile{position:absolute; transition: left 0.2s cubic-bezier(0.2, 1.2, 0.5, 1), top 0.2s cubic-bezier(0.2, 1.2, 0.5, 1);}
-
-    /* Individual digit block */
-    .digit-block{
-      width:var(--block-size);
-      height:var(--block-height);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:800;
-      font-size:48px;
-      line-height: 1;
-    }
-    
-    .comma-block{ width:20px; font-size:48px; justify-content: center; padding-bottom: 15px; align-items: flex-end;}
-    .decimal-block{ width:15px; font-size:56px; font-weight:900; align-items:flex-end; padding-bottom:15px; justify-content: center;}
-
-    /* COLOR CLASSES */
-    .pv-ones, .pv-thousands, .pv-millions { background: var(--c-ones); color: white; }
-    .pv-tens, .pv-tenThousands { background: var(--c-tens); color: white; }
-    .pv-hundreds, .pv-hundredThousands { background: var(--c-hundreds); color: white; }
-    
-    /* Decimals - Dark text */
-    .pv-tenths { background: var(--c-tenths); color: #1e3a8a; }
-    .pv-hundredths { background: var(--c-hundredths); color: #7f1d1d; }
-    .pv-thousandths { background: var(--c-thousandths); color: #14532d; }
-
-    /* Label on top of cards (Optional, good for learning) */
-    .tile::before {
-      content: attr(data-label);
+    /* === MULTIPLICATION CHART MODAL === */
+    #multChart {
       position: absolute;
-      top: 2px;
-      left: 4px;
-      font-size: 10px;
-      opacity: 0.8;
-      font-weight: normal;
-      text-transform: uppercase;
+      top: 80px; right: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 100;
+      display: none;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      gap: 2px;
+      font-size: 12px;
+    }
+    .chart-cell {
+      width: 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      background: #f3f4f6;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .chart-header { background: #374151; color: white; }
+    .chart-highlight { background: #bfdbfe; }
+
+    /* === BOTTOM DOCK === */
+    #bottomDock{
+      height: 30vh;
+      background: var(--tray);
+      display: flex; flex-direction: column;
+      z-index: 60;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
     }
 
-    #controls{position:absolute;top:15px;left:15px;display:flex;gap:10px;z-index:10}
-    .btn{background:#1f2937;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:14px;box-shadow:0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s;}
-    .btn:hover{ transform: translateY(-1px); box-shadow: 0 6px 8px rgba(0,0,0,0.15);}
-    .btn.danger{background:#ef4444;}
-    .btn.danger:hover{background:#dc2626;}
-
-    /* BOTTOM DOCK */
-    #bottomDock{position:absolute;left:0;right:0;bottom:0;height:30vh;pointer-events:none;z-index:20;display:flex;flex-direction:column}
-
-    /* TABS */
     #drawerTabs{
       display:flex;
       background:#374151;
-      pointer-events:auto;
       overflow-x:auto;
-      flex-shrink:0;
       padding: 0 10px;
-      scrollbar-width: none; /* Hide scrollbar FF */
+      scrollbar-width: none;
     }
     #drawerTabs::-webkit-scrollbar { display: none; }
 
     .drawer-tab{
-      padding:10px 20px;
-      background:transparent;
-      color: #d1d5db;
-      border:none;
-      cursor:pointer;
-      font-weight:700;
-      font-size:13px;
-      white-space:nowrap;
-      transition:all .2s;
-      flex-shrink:0;
-      font-family:'Lexend',sans-serif;
+      padding:12px 20px;
+      background:transparent; color: #9ca3af;
+      border:none; cursor:pointer;
+      font-weight:700; font-size:13px;
+      white-space:nowrap; transition:all .2s;
       border-bottom: 4px solid transparent;
     }
-    .drawer-tab:hover{color: white; background: rgba(255,255,255,0.05);}
     .drawer-tab.active{
-      color: white;
-      background: rgba(0,0,0,0.2);
-      border-bottom: 4px solid #3b82f6;
+      color: white; background: rgba(255,255,255,0.1);
+      border-bottom: 4px solid var(--accent);
     }
 
-    /* TILES AREA */
     #baseTiles{
       flex:1;
-      background:#1f2937;
-      padding:15px;
-      pointer-events:auto;
-      box-shadow:0 -4px 20px rgba(0,0,0,0.15);
-      overflow-x: auto;
-      overflow-y: hidden;
-      display:flex;
-      align-items:center;
-      justify-content:flex-start; /* Changed from center to allow scrolling */
+      padding:20px;
+      overflow-x: auto; overflow-y: hidden;
+      display:flex; align-items:center;
     }
-    .base-row{
+    .base-row{ display:flex; gap:15px; margin: 0 auto; }
+
+    /* === TILES === */
+    .tile{
+      height:var(--block-height);
       display:flex;
-      flex-wrap:nowrap; /* Horizontal scroll usually better for math cards */
-      gap:15px;
-      padding: 0 20px;
-      margin: 0 auto;
+      cursor:grab;
+      border-radius:8px;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+      background: white;
+      overflow:hidden;
+      transition: transform 0.1s;
     }
+    .tile:active{ cursor:grabbing; transform: scale(1.02); }
+    .tile.dragging{ position:fixed; z-index: 9999; opacity:0.9; pointer-events:none; }
+    .work-pane-tile{ position:absolute; transition: left 0.2s, top 0.2s; }
+
+    .digit-block{
+      width:var(--block-size); height:var(--block-height);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:48px; line-height:1;
+    }
+    .comma-block{ width:20px; align-items:flex-end; padding-bottom:15px; }
+    .decimal-block{ width:15px; font-size:56px; align-items:flex-end; padding-bottom:15px; }
+
+    /* Colors */
+    .pv-ones, .pv-thousands, .pv-millions { background: var(--c-ones); color: white; }
+    .pv-tens, .pv-tenThousands { background: var(--c-tens); color: white; }
+    .pv-hundreds, .pv-hundredThousands { background: var(--c-hundreds); color: white; }
+    .pv-tenths { background: var(--c-tenths); color: #1e3a8a; }
+    .pv-hundredths { background: var(--c-hundredths); color: #7f1d1d; }
+    .pv-thousandths { background: var(--c-thousandths); color: #14532d; }
+
+    /* Confetti */
+    .confetti { position: absolute; width: 10px; height: 10px; background: #f00; animation: fall linear forwards; pointer-events: none; z-index: 9999; }
+    @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+
   </style>
 </head>
 <body>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <div class="dash-group">
+      <button class="btn btn-danger" id="resetBtn"><span class="btn-icon">🗑</span> Clear</button>
+      <div id="totalDisplay">
+        <span id="sumText">0</span>
+        <button class="btn btn-primary" id="speakBtn" style="padding:4px 8px; border-radius:20px; min-width:auto;" title="Read Aloud">🔊</button>
+      </div>
+    </div>
+    
+    <div class="dash-group">
+      <button class="btn" id="toggleChartBtn"><span class="btn-icon">✖️</span> Chart</button>
+      <button class="btn btn-success" id="challengeBtn"><span class="btn-icon">🎯</span> Challenge</button>
+    </div>
+  </div>
+
+  <!-- Challenge Banner -->
+  <div id="challengeBanner">Target: <span id="targetNum">0</span></div>
+
+  <!-- Multiplication Chart Popup -->
+  <div id="multChart">
+    <div class="chart-grid" id="gridContainer">
+      <!-- JS fills this -->
+    </div>
+  </div>
+
   <div id="app">
     <div id="workPane">
       <div id="snapLine"></div>
-      <div class="hint">Drag cards to the center line to build numbers</div>
-      <div id="controls">
-        <button id="resetButton" class="btn danger">Clear Workspace</button>
-      </div>
+      <!-- Tiles go here -->
     </div>
 
-    <!-- bottom dock with drawer tabs -->
     <div id="bottomDock">
-      <!-- drawer tabs -->
       <div id="drawerTabs">
         <button class="drawer-tab" data-drawer="millions">Millions</button>
-        <button class="drawer-tab" data-drawer="hundredThousands">Hundred Thousands</button>
-        <button class="drawer-tab" data-drawer="tenThousands">Ten Thousands</button>
+        <button class="drawer-tab" data-drawer="hundredThousands">H. Thousands</button>
+        <button class="drawer-tab" data-drawer="tenThousands">T. Thousands</button>
         <button class="drawer-tab" data-drawer="thousands">Thousands</button>
         <button class="drawer-tab" data-drawer="hundreds">Hundreds</button>
         <button class="drawer-tab" data-drawer="tens">Tens</button>
         <button class="drawer-tab active" data-drawer="ones">Ones</button>
         <button class="drawer-tab" data-drawer="tenths">Tenths</button>
         <button class="drawer-tab" data-drawer="hundredths">Hundredths</button>
-        <button class="drawer-tab" data-drawer="thousandths">Thousandths</button>
       </div>
-      <!-- tiles area -->
       <div id="baseTiles">
         <div class="base-row" id="baseRow"></div>
       </div>
@@ -228,11 +289,9 @@
     const SNAP_DISTANCE = 40;
     const SNAP_LINE_DISTANCE = 80; 
     
-    // ====== PLACE VALUE DATA ======
     const PLACE_VALUES = {
       tenths: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
       hundredths: [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09],
-      thousandths: [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009],
       ones: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       tens: [10, 20, 30, 40, 50, 60, 70, 80, 90],
       hundreds: [100, 200, 300, 400, 500, 600, 700, 800, 900],
@@ -245,13 +304,41 @@
     // ====== STATE ======
     let tiles = []; 
     let activeDrawer = 'ones'; 
+    let currentTotal = 0;
+    let challengeMode = false;
+    let targetNumber = 0;
 
-    // drag state
+    // Drag State
     let draggedTile = null;
     let dragOffset = {x: 0, y: 0};
     let gesture = null;
 
-    // ====== UTIL ======
+    // ====== INIT HELPERS ======
+    function buildMultChart() {
+      const grid = document.getElementById('gridContainer');
+      // Corner
+      grid.appendChild(createCell('×', 'chart-header'));
+      
+      // Header Row
+      for(let i=1; i<=10; i++) grid.appendChild(createCell(i, 'chart-header'));
+      
+      // Rows
+      for(let r=1; r<=10; r++) {
+        // Row Header
+        grid.appendChild(createCell(r, 'chart-header'));
+        for(let c=1; c<=10; c++) {
+          grid.appendChild(createCell(r*c, 'chart-cell'));
+        }
+      }
+    }
+    function createCell(text, cls) {
+      const d = document.createElement('div');
+      d.className = `chart-cell ${cls}`;
+      d.textContent = text;
+      return d;
+    }
+
+    // ====== CORE LOGIC ======
     function getPlaceValueType(value) {
       if (value < 0.01) return 'thousandths';
       if (value < 0.1) return 'hundredths';
@@ -265,10 +352,7 @@
       return 'millions';
     }
 
-    // Map types to CSS color classes
-    function getVisualClass(type) {
-      return `pv-${type}`;
-    }
+    function getVisualClass(type) { return `pv-${type}`; }
 
     function getDigitsArray(value) {
       let str;
@@ -284,13 +368,10 @@
       
       const result = [];
       const wholeDigits = str.split('');
-      
       for (let i = 0; i < wholeDigits.length; i++) {
         result.push(wholeDigits[i]);
         const posFromRight = wholeDigits.length - i - 1;
-        if (posFromRight > 0 && posFromRight % 3 === 0) {
-          result.push(',');
-        }
+        if (posFromRight > 0 && posFromRight % 3 === 0) result.push(',');
       }
       return result;
     }
@@ -298,7 +379,6 @@
     function getCardWidth(placeValue) {
       const sampleVal = PLACE_VALUES[placeValue][0];
       const digits = getDigitsArray(sampleVal);
-      
       let width = 0;
       for (let char of digits) {
         if (char === ',') width += 20;
@@ -328,25 +408,17 @@
       const cardWidth = getCardWidth(placeValue);
       
       const isDecimal = ['thousandths','hundredths','tenths'].includes(placeValue);
-      
-      if (isDecimal) {
-        return { x: centerX, y: snapY };
-      } else {
-        return { x: centerX - cardWidth, y: snapY };
-      }
+      return isDecimal ? { x: centerX, y: snapY } : { x: centerX - cardWidth, y: snapY };
     }
 
     function findOverlayTarget(dropX, dropY, droppedPlaceValue, excludeId) {
       const droppedOrder = getPlaceValueOrder(droppedPlaceValue);
       const droppedWidth = getCardWidth(droppedPlaceValue);
-
       let bestMatch = null;
       let bestDistance = Infinity;
 
       for (const tile of tiles) {
         if (tile.id === excludeId) continue;
-
-        // Check vertical proximity first to avoid checking every tile
         if (Math.abs(tile.y - dropY) > 50) continue;
 
         const targetOrder = getPlaceValueOrder(tile.placeValue);
@@ -355,11 +427,6 @@
         
         let canOverlay = false;
         let snapX, snapY;
-        
-        // Whole Number Logic: Standard form stacking (smallest on top of largest)
-        // In this stacking logic:
-        // To stack "5" on "30", Ones(10) > Tens(9). 
-        // So if droppedOrder > targetOrder, we align Right edges.
         
         if (!droppedIsDecimal && !targetIsDecimal && droppedOrder > targetOrder) {
           canOverlay = true;
@@ -370,31 +437,27 @@
         else if (droppedIsDecimal && !targetIsDecimal) {
           canOverlay = true;
           const targetWidth = getCardWidth(tile.placeValue);
-          snapX = tile.x + targetWidth; // Decimals snap to right edge of whole numbers
+          snapX = tile.x + targetWidth; 
           snapY = tile.y;
         } 
         else if (droppedIsDecimal && targetIsDecimal && droppedOrder > targetOrder) {
           canOverlay = true;
-          snapX = tile.x; // Decimals align left (at the point)
+          snapX = tile.x; 
           snapY = tile.y;
         }
         
         if (!canOverlay) continue;
 
-        const dx = dropX - snapX;
-        const dy = dropY - snapY;
-        const distance = Math.sqrt(dx*dx + dy*dy);
-
-        if (distance < SNAP_DISTANCE && distance < bestDistance) {
-          bestDistance = distance;
+        const dist = Math.sqrt(Math.pow(dropX - snapX, 2) + Math.pow(dropY - snapY, 2));
+        if (dist < SNAP_DISTANCE && dist < bestDistance) {
+          bestDistance = dist;
           bestMatch = { tile, snapX, snapY };
         }
       }
-
       return bestMatch;
     }
 
-    // ====== DOM BUILDERS ======
+    // ====== DOM & RENDER ======
     function createTile(value, source) {
       const el = document.createElement('div');
       const placeValue = getPlaceValueType(value);
@@ -403,132 +466,100 @@
 
       el.className = `tile ${colorClass}`;
       el.dataset.value = value;
-      el.dataset.placeValue = placeValue;
-      el.dataset.source = source;
       
-      // Label for accessibility/learning
-      // el.dataset.label = placeValue;
-
       digits.forEach(char => {
-        const digitBlock = document.createElement('div');
-        if (char === ',') {
-          digitBlock.className = 'digit-block comma-block';
-          digitBlock.textContent = ',';
-        } else if (char === '.') {
-          digitBlock.className = 'digit-block decimal-block';
-          digitBlock.textContent = '.';
-        } else {
-          digitBlock.className = 'digit-block';
-          digitBlock.textContent = char;
-        }
-        el.appendChild(digitBlock);
+        const d = document.createElement('div');
+        if (char === ',') { d.className = 'digit-block comma-block'; d.textContent = ','; }
+        else if (char === '.') { d.className = 'digit-block decimal-block'; d.textContent = '.'; }
+        else { d.className = 'digit-block'; d.textContent = char; }
+        el.appendChild(d);
       });
 
       el.addEventListener('pointerdown', (e) => onPointerStart(e, value, source));
       return el;
     }
 
-    function renderTray() {
-      renderActiveDrawer();
-    }
-
     function renderActiveDrawer() {
       const baseRow = document.getElementById('baseRow');
       baseRow.innerHTML = '';
-      
-      const vals = PLACE_VALUES[activeDrawer] || [];
-      vals.forEach(val => {
+      (PLACE_VALUES[activeDrawer] || []).forEach(val => {
         baseRow.appendChild(createTile(val, 'tray'));
       });
     }
 
     function renderWorkPane() {
       const workPane = document.getElementById('workPane');
-      const hint = workPane.querySelector('.hint');
       workPane.querySelectorAll('.work-pane-tile').forEach(el => el.remove());
       
-      hint.style.display = tiles.length > 0 ? 'none' : 'block';
-
-      // Sort for rendering order
+      let sum = 0;
+      
+      // Sort: High order (Ones) must be on top of Low order (Hundreds) for stacking to look right
       const sortedTiles = [...tiles].sort((a, b) => a.zIndex - b.zIndex);
 
       sortedTiles.forEach(tile => {
+        sum += tile.value;
         const digits = getDigitsArray(tile.value);
         const colorClass = getVisualClass(tile.placeValue);
 
         const el = document.createElement('div');
         el.className = `tile work-pane-tile ${colorClass}`;
-        el.dataset.value = tile.value;
-        
-        digits.forEach(char => {
-          const digitBlock = document.createElement('div');
-          if (char === ',') {
-            digitBlock.className = 'digit-block comma-block';
-            digitBlock.textContent = ',';
-          } else if (char === '.') {
-            digitBlock.className = 'digit-block decimal-block';
-            digitBlock.textContent = '.';
-          } else {
-            digitBlock.className = 'digit-block';
-            digitBlock.textContent = char;
-          }
-          el.appendChild(digitBlock);
-        });
-
         el.style.left = tile.x + 'px';
         el.style.top = tile.y + 'px';
         el.style.zIndex = tile.zIndex;
+        
+        digits.forEach(char => {
+          const d = document.createElement('div');
+          if (char === ',') { d.className = 'digit-block comma-block'; d.textContent = ','; }
+          else if (char === '.') { d.className = 'digit-block decimal-block'; d.textContent = '.'; }
+          else { d.className = 'digit-block'; d.textContent = char; }
+          el.appendChild(d);
+        });
 
         el.addEventListener('pointerdown', (e) => onPointerStart(e, tile.value, tile.id));
         workPane.appendChild(el);
       });
+      
+      updateTotal(sum);
     }
 
-    // ====== DRAG HANDLING ======
-    function onPointerStart(e, value, source) {
-      e.preventDefault();
-      e.stopPropagation();
+    function updateTotal(val) {
+      // Fix Floating Point nonsense (0.1 + 0.2 = 0.300000004)
+      currentTotal = parseFloat(val.toFixed(4));
+      document.getElementById('sumText').textContent = new Intl.NumberFormat('en-US').format(currentTotal);
       
-      // Capture pointer for smooth dragging even if mouse leaves div
-      if (e.currentTarget.setPointerCapture) {
-        try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_) {}
-      }
+      if(challengeMode) checkWinCondition();
+    }
+
+    // ====== DRAG HANDLERS ======
+    function onPointerStart(e, value, source) {
+      e.preventDefault(); e.stopPropagation();
+      if (e.currentTarget.setPointerCapture) try { e.currentTarget.setPointerCapture(e.pointerId); } catch(_) {}
 
       const targetRect = e.currentTarget.getBoundingClientRect();
-      const startX = e.clientX;
-      const startY = e.clientY;
-
       gesture = {
-        startX, startY,
-        moved: false,
-        source, value,
-        pointerType: e.pointerType
+        startX: e.clientX, startY: e.clientY,
+        moved: false, source, value
       };
 
       const onMove = (ev) => {
         if (!gesture) return;
-        const dx = ev.clientX - gesture.startX;
-        const dy = ev.clientY - gesture.startY;
-
-        if (!gesture.moved && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        if (!gesture.moved && (Math.abs(ev.clientX - gesture.startX) > 5 || Math.abs(ev.clientY - gesture.startY) > 5)) {
           gesture.moved = true;
           beginDrag(gesture, targetRect);
         }
-        if (gesture.moved) handleMove(ev);
+        if (gesture.moved) {
+          if (!draggedTile) return;
+          draggedTile.x = ev.clientX; draggedTile.y = ev.clientY;
+          updateDragVisual();
+        }
       };
-
-      const onEnd = (ev) => {
-        handleEnd(ev);
-        cleanup();
-      };
-
+      const onEnd = (ev) => { handleEnd(ev); cleanup(); };
       function cleanup() {
         document.removeEventListener('pointermove', onMove);
         document.removeEventListener('pointerup', onEnd);
         document.removeEventListener('pointercancel', onEnd);
         gesture = null;
       }
-
       document.addEventListener('pointermove', onMove, {passive: false});
       document.addEventListener('pointerup', onEnd, {passive: false});
       document.addEventListener('pointercancel', onEnd, {passive: false});
@@ -536,183 +567,177 @@
 
     function beginDrag(g, targetRect) {
       const placeValue = getPlaceValueType(g.value);
-      
       if (g.source === 'tray') {
-        draggedTile = {
-          value: g.value,
-          placeValue,
-          x: g.startX,
-          y: g.startY,
-          sourceType: 'tray'
-        };
+        draggedTile = { value: g.value, placeValue, x: g.startX, y: g.startY, sourceType: 'tray' };
       } else {
         const paneTile = tiles.find(t => t.id === g.source);
         if (!paneTile) return;
-        draggedTile = {
-          ...paneTile,
-          sourceType: 'pane'
-        };
+        draggedTile = { ...paneTile, sourceType: 'pane' };
       }
-
-      dragOffset = {
-        x: g.startX - targetRect.left,
-        y: g.startY - targetRect.top
-      };
-
+      dragOffset = { x: g.startX - targetRect.left, y: g.startY - targetRect.top };
       updateDragVisual();
     }
 
-    function handleMove(e) {
-      if (!draggedTile) return;
-      e.preventDefault();
-      draggedTile.x = e.clientX;
-      draggedTile.y = e.clientY;
-      updateDragVisual();
-    }
-
-    function handleEnd(e) {
-      if (!draggedTile) return;
-      e.preventDefault();
-
-      const workPane = document.getElementById('workPane');
-      const paneRect = workPane.getBoundingClientRect();
-
-      // Check if dropped inside work pane
-      const inside = e.clientY < paneRect.bottom;
-
-      if (inside) {
-        let dropX = e.clientX - paneRect.left - dragOffset.x;
-        let dropY = e.clientY - paneRect.top - dragOffset.y;
-
-        // Check snap line
-        const snapLinePos = getSnapLinePosition(draggedTile.placeValue);
-        const distanceToLine = Math.abs(dropY - snapLinePos.y);
-
-        let finalX, finalY, parentId = null;
-        const order = getPlaceValueOrder(draggedTile.placeValue);
-        let zIndex = 1000 + order; // Higher order (Ones) on top of Lower order (Hundreds)
-
-        if (distanceToLine < SNAP_LINE_DISTANCE) {
-          finalX = snapLinePos.x;
-          finalY = snapLinePos.y;
-        } else {
-          // Overlay check
-          const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, 
-            draggedTile.sourceType === 'pane' ? draggedTile.id : null);
-
-          if (overlay) {
-            finalX = overlay.snapX;
-            finalY = overlay.snapY;
-            parentId = overlay.tile.id;
-          } else {
-            finalX = dropX;
-            finalY = dropY;
-          }
-        }
-
-        if (draggedTile.sourceType === 'tray') {
-          const newTile = {
-            id: Date.now() + Math.random(),
-            value: draggedTile.value,
-            placeValue: draggedTile.placeValue,
-            x: finalX,
-            y: finalY,
-            parentId,
-            zIndex
-          };
-          tiles.push(newTile);
-        } else {
-          const existingTile = tiles.find(t => t.id === draggedTile.id);
-          if (existingTile) {
-            existingTile.x = finalX;
-            existingTile.y = finalY;
-            existingTile.parentId = parentId;
-            existingTile.zIndex = zIndex;
-          }
-        }
-      } else if (draggedTile.sourceType === 'pane') {
-        // Tossed out of pane
-        tiles = tiles.filter(t => t.id !== draggedTile.id);
-      }
-
-      draggedTile = null;
-      clearDragVisual();
-      renderWorkPane();
-    }
-
-    // ====== DRAG VISUALS ======
     function updateDragVisual() {
-      clearDragVisual();
+      document.querySelectorAll('[data-dragging="true"]').forEach(el => el.remove());
       if (!draggedTile) return;
 
       const colorClass = getVisualClass(draggedTile.placeValue);
       const g = document.createElement('div');
       g.className = `tile ${colorClass} dragging`;
+      g.dataset.dragging = 'true';
 
       const digits = getDigitsArray(draggedTile.value);
       digits.forEach(char => {
-        const digitBlock = document.createElement('div');
-        if (char === ',') {
-          digitBlock.className = 'digit-block comma-block';
-          digitBlock.textContent = ',';
-        } else if (char === '.') {
-          digitBlock.className = 'digit-block decimal-block';
-          digitBlock.textContent = '.';
-        } else {
-          digitBlock.className = 'digit-block';
-          digitBlock.textContent = char;
-        }
-        g.appendChild(digitBlock);
+        const d = document.createElement('div');
+        if (char === ',') { d.className = 'digit-block comma-block'; d.textContent = ','; }
+        else if (char === '.') { d.className = 'digit-block decimal-block'; d.textContent = '.'; }
+        else { d.className = 'digit-block'; d.textContent = char; }
+        g.appendChild(d);
       });
 
       const gx = draggedTile.x - dragOffset.x;
       const gy = draggedTile.y - dragOffset.y;
-      g.style.transform = `translate3d(${gx}px, ${gy}px, 0) rotate(-2deg) scale(1.05)`;
-      
-      // High z-index for drag
-      g.style.zIndex = 99999;
-      
-      g.dataset.dragging = 'true';
+      g.style.transform = `translate3d(${gx}px, ${gy}px, 0) rotate(-3deg) scale(1.05)`;
       document.body.appendChild(g);
     }
 
-    function clearDragVisual() {
-      document.querySelectorAll('[data-dragging="true"]').forEach(el => el.remove());
-    }
+    function handleEnd(e) {
+      if (!draggedTile) return;
+      const workPane = document.getElementById('workPane');
+      const paneRect = workPane.getBoundingClientRect();
 
-    // ====== TABS ======
-    function switchDrawer(drawerName) {
-      activeDrawer = drawerName;
-      
-      document.querySelectorAll('.drawer-tab').forEach(tab => {
-        const isActive = tab.dataset.drawer === drawerName;
-        if(isActive) {
-          tab.classList.add('active');
-          // Scroll tab into view
-          tab.scrollIntoView({behavior: 'smooth', inline: 'center', block: 'nearest'});
+      if (e.clientY < paneRect.bottom) {
+        let dropX = e.clientX - paneRect.left - dragOffset.x;
+        let dropY = e.clientY - paneRect.top - dragOffset.y;
+
+        const snapLinePos = getSnapLinePosition(draggedTile.placeValue);
+        const distanceToLine = Math.abs(dropY - snapLinePos.y);
+
+        let finalX, finalY, parentId = null;
+        const order = getPlaceValueOrder(draggedTile.placeValue);
+        let zIndex = 1000 + order;
+
+        if (distanceToLine < SNAP_LINE_DISTANCE) {
+          finalX = snapLinePos.x;
+          finalY = snapLinePos.y;
         } else {
-          tab.classList.remove('active');
+          const overlay = findOverlayTarget(dropX, dropY, draggedTile.placeValue, 
+            draggedTile.sourceType === 'pane' ? draggedTile.id : null);
+          if (overlay) {
+            finalX = overlay.snapX; finalY = overlay.snapY; parentId = overlay.tile.id;
+          } else {
+            finalX = dropX; finalY = dropY;
+          }
         }
-      });
-      renderActiveDrawer();
+
+        if (draggedTile.sourceType === 'tray') {
+          tiles.push({
+            id: Date.now() + Math.random(),
+            value: draggedTile.value,
+            placeValue: draggedTile.placeValue,
+            x: finalX, y: finalY, parentId, zIndex
+          });
+        } else {
+          const existing = tiles.find(t => t.id === draggedTile.id);
+          if (existing) {
+            existing.x = finalX; existing.y = finalY; existing.parentId = parentId; existing.zIndex = zIndex;
+          }
+        }
+      } else if (draggedTile.sourceType === 'pane') {
+        tiles = tiles.filter(t => t.id !== draggedTile.id);
+      }
+
+      draggedTile = null;
+      document.querySelectorAll('[data-dragging="true"]').forEach(el => el.remove());
+      renderWorkPane();
     }
 
-    // ====== INIT ======
-    document.getElementById('resetButton').addEventListener('click', () => {
+    // ====== RESOURCE TOOLS ======
+    
+    // 1. Text to Speech
+    document.getElementById('speakBtn').addEventListener('click', () => {
+      const text = currentTotal.toString();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9; // Slightly slower for students
+      window.speechSynthesis.speak(utterance);
+    });
+
+    // 2. Challenge Mode
+    document.getElementById('challengeBtn').addEventListener('click', () => {
+      challengeMode = !challengeMode;
+      const banner = document.getElementById('challengeBanner');
+      const btn = document.getElementById('challengeBtn');
+      
+      if(challengeMode) {
+        banner.style.display = 'block';
+        btn.style.background = '#f59e0b'; // Active amber state
+        generateNewTarget();
+      } else {
+        banner.style.display = 'none';
+        btn.style.background = ''; // Revert
+      }
+    });
+
+    function generateNewTarget() {
+      // Simple logic: random number between 100 and 9999
+      // For advanced use, we could check active drawers
+      targetNumber = Math.floor(Math.random() * 9000) + 100;
+      document.getElementById('targetNum').textContent = new Intl.NumberFormat().format(targetNumber);
+    }
+
+    function checkWinCondition() {
+      if(currentTotal === targetNumber) {
+        celebrate();
+        setTimeout(generateNewTarget, 3000);
+      }
+    }
+
+    function celebrate() {
+      // Confetti effect
+      const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'];
+      for(let i=0; i<50; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw';
+        c.style.background = colors[Math.floor(Math.random() * colors.length)];
+        c.style.animationDuration = (Math.random() * 2 + 2) + 's';
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 4000);
+      }
+      // Play sound? 
+      const utterance = new SpeechSynthesisUtterance("Great Job!");
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // 3. Multiplication Chart
+    document.getElementById('toggleChartBtn').addEventListener('click', () => {
+      const chart = document.getElementById('multChart');
+      chart.style.display = chart.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // 4. Navigation
+    document.querySelectorAll('.drawer-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        activeDrawer = tab.dataset.drawer;
+        document.querySelectorAll('.drawer-tab').forEach(t => {
+          t.classList.toggle('active', t === tab);
+          if(t === tab) t.scrollIntoView({behavior: 'smooth', inline: 'center'});
+        });
+        renderActiveDrawer();
+      });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
       tiles = [];
       renderWorkPane();
     });
 
-    document.querySelectorAll('.drawer-tab').forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        switchDrawer(tab.dataset.drawer);
-      });
-    });
-
-    // Start at Ones
-    switchDrawer('ones');
-    renderTray();
+    // Start
+    buildMultChart();
+    renderActiveDrawer();
     renderWorkPane();
+
   </script>
 </body>
 </html>
